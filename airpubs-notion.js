@@ -45,12 +45,10 @@
         function buildBottom(article, galleys, pages, doiText, abstractViews, pdfViews) {
             var bottomHtml = '<div class="airpubs-extra">';
             // Stats row
-            if (abstractViews > 0 || pdfViews > 0) {
-                bottomHtml += '<div class="airpubs-stats-row">';
-                bottomHtml += '<span class="airpubs-stat"><i class="fas fa-chart-line"></i> Abstract : ' + abstractViews + '</span>';
-                bottomHtml += '<span class="airpubs-stat"><i class="fas fa-download"></i> PDF : ' + pdfViews + '</span>';
-                bottomHtml += '</div>';
-            }
+            bottomHtml += '<div class="airpubs-stats-row">';
+            bottomHtml += '<span class="airpubs-stat"><i class="fas fa-chart-line"></i> Abstract : ' + abstractViews + '</span>';
+            bottomHtml += '<span class="airpubs-stat"><i class="fas fa-download"></i> PDF : ' + pdfViews + '</span>';
+            bottomHtml += '</div>';
             // Galley + DOI row
             bottomHtml += '<div class="airpubs-doi-row">';
             bottomHtml += '<div class="airpubs-galley-btns">';

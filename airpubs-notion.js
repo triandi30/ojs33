@@ -1,139 +1,142 @@
 /**
- * AiRPubs OJS Enhancement Script - REMOVE VERSION
- * Menghapus: afiliasi, abstract view, pdf view, doi, halaman
+ * AiRPubs OJS Enhancement Script v1 (Tanpa Penulis, Afiliasi, DOI)
+ * With fetch() - gets stats from article detail page
+ * Works on servers that don't block same-origin fetch
  */
 (function() {
     'use strict';
 
-    function removeElements() {
-        // 1. Hapus afiliasi penulis (dari berbagai kemungkinan selector)
-        var affiliationSelectors = [
-            '.authors .affiliation',
-            '.item.authors .affiliation',
-            '.obj_article_details .affiliation',
-            '.authors .affiliation',
-            '[class*="affiliation"]',
-            '.airpubs-affiliations'
-        ];
-        affiliationSelectors.forEach(function(sel) {
-            document.querySelectorAll(sel).forEach(function(el) { if(el) el.remove(); });
-        });
+    function init() {
+        // Inject styles
+        var css = document.createElement('style');
+        css.textContent = '' +
+            '.obj_article_summary { padding:20px; margin-bottom:16px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; transition:all .2s ease; }' +
+            '.obj_article_summary:hover { box-shadow:0 4px 15px rgba(0,0,0,.06); border-color:#1565c0; }' +
+            '.obj_article_summary .title a { color:#1565c0; font-weight:700; font-size:15px; text-decoration:none; }' +
+            '.obj_article_summary .title a:hover { text-decoration:underline; }' +
+            '.airpubs-extra { margin-top:12px; padding-top:12px; border-top:1px solid #f3f4f6; overflow:hidden; }' +
+            '.airpubs-doi-row { display:flex!important; align-items:center!important; justify-content:space-between!important; flex-wrap:nowrap!important; gap:10px; }' +
+            '.airpubs-galley-btns { display:flex!important; gap:8px; flex-wrap:wrap; flex-shrink:0; }' +
+            '.airpubs-galley-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 16px; border:1.5px solid #dc3545; border-radius:5px; font-size:12.5px; font-weight:600; color:#dc3545; text-decoration:none; transition:all .2s ease; }' +
+            '.airpubs-galley-btn:hover { background:#dc3545; color:#fff; text-decoration:none; }' +
+            '.airpubs-pages { font-size:13px; color:#6b7280; display:inline-flex; align-items:center; gap:5px; }' +
+            '.airpubs-stats-row { display:flex; gap:20px; margin-bottom:10px; }' +
+            '.airpubs-stat { font-size:13px; color:#6b7280; display:inline-flex; align-items:center; gap:5px; }' +
+            '';
+        document.head.appendChild(css);
 
-        // 2. Hapus abstract view counter
-        var abstractViewSelectors = [
-            '.abstract_views',
-            '.stat_views',
-            '.views_abstract',
-            '[class*="abstract_view"]',
-            '.item.views',
-            '.statistic_views',
-            'span:contains("Abstract")',
-            '.airpubs-stat'
-        ];
-        abstractViewSelectors.forEach(function(sel) {
-            document.querySelectorAll(sel).forEach(function(el) {
-                if(el && (el.textContent.includes('Abstract') || el.textContent.includes('abstract'))) {
-                    el.remove();
-                }
-            });
-        });
+        // Load external CSS
+        var extCss = document.createElement('link');
+        extCss.rel = 'stylesheet';
+        extCss.href = 'https://cdn.jsdelivr.net/gh/triandi30/cssv2@main/notion.css';
+        document.head.appendChild(extCss);
 
-        // 3. Hapus pdf view counter
-        var pdfViewSelectors = [
-            '.pdf_views',
-            '.views_pdf',
-            '.downloads_pdf',
-            '[class*="pdf_view"]',
-            'span:contains("PDF")',
-            '.airpubs-stat'
-        ];
-        pdfViewSelectors.forEach(function(sel) {
-            document.querySelectorAll(sel).forEach(function(el) {
-                if(el && (el.textContent.includes('PDF') || el.textContent.includes('pdf'))) {
-                    el.remove();
-                }
-            });
-        });
+        var articles = document.querySelectorAll('.obj_article_summary');
+        if (!articles.length) return;
 
-        // 4. Hapus DOI
-        var doiSelectors = [
-            '.doi',
-            '.item.doi',
-            '[class*="doi"]',
-            'a[href*="doi.org"]',
-            '.airpubs-doi',
-            '.airpubs-doi-row'
-        ];
-        doiSelectors.forEach(function(sel) {
-            document.querySelectorAll(sel).forEach(function(el) {
-                if(el) el.remove();
-                // Hapus parent jika hanya berisi DOI
-                if(el && el.parentElement && el.parentElement.children.length === 0) {
-                    el.parentElement.remove();
-                }
-            });
-        });
+        // Helper function to build bottom section (tanpa DOI)
+        function buildBottom(article, galleys, pages, abstractViews, pdfViews) {
+            var bottomHtml = '<div class="airpubs-extra">';
+            // Stats row
+            bottomHtml += '<div class="airpubs-stats-row">';
+            bottomHtml += '<span class="airpubs-stat"><i class="fas fa-chart-line"></i> Abstract : ' + abstractViews + '</span>';
+            bottomHtml += '<span class="airpubs-stat"><i class="fas fa-download"></i> PDF : ' + pdfViews + '</span>';
+            bottomHtml += '</div>';
+            // Galley row (tanpa DOI)
+            bottomHtml += '<div class="airpubs-doi-row">';
+            bottomHtml += '<div class="airpubs-galley-btns">';
+            for (var g = 0; g < galleys.length; g++) {
+                bottomHtml += '<a href="' + galleys[g].href + '" class="airpubs-galley-btn"><i class="fas fa-file-pdf"></i> ' + galleys[g].label + '</a>';
+            }
+            bottomHtml += '</div>';
+            bottomHtml += '</div>';
+            if (pages) {
+                bottomHtml += '<div style="text-align:right;margin-top:4px"><span class="airpubs-pages"><i class="far fa-file-alt"></i> ' + pages + '</span></div>';
+            }
+            bottomHtml += '</div>';
+            article.insertAdjacentHTML('beforeend', bottomHtml);
+        }
 
-        // 5. Hapus halaman (pages)
-        var pagesSelectors = [
-            '.pages',
-            '.item.pages',
-            '.pages span',
-            '.airpubs-pages',
-            '[class*="pages"]'
-        ];
-        pagesSelectors.forEach(function(sel) {
-            document.querySelectorAll(sel).forEach(function(el) {
-                if(el) el.remove();
-            });
-        });
-
-        // 6. Hapus baris stats (abstract + pdf views)
-        document.querySelectorAll('.airpubs-stats-row, .statistics, .article-statistics').forEach(function(el) {
-            el.remove();
-        });
-
-        // 7. Hapus tombol galley jika diperlukan (tidak disebutkan, tapi bisa ditambahkan)
-        // document.querySelectorAll('.galleys_links, .galley-links, .airpubs-galley-btns').forEach(el => el.remove());
-
-        // 8. Hapus baris DOI row yang mungkin membungkus galley + DOI
-        document.querySelectorAll('.airpubs-doi-row, .doi-row').forEach(function(el) {
-            el.remove();
-        });
-
-        // 9. Hapus extra bottom section
-        document.querySelectorAll('.airpubs-extra').forEach(function(el) {
-            el.remove();
-        });
-    }
-
-    // Fungsi untuk memproses setiap artikel dan menghapus elemen yang tidak diinginkan
-    function processArticles() {
-        var articles = document.querySelectorAll('.obj_article_summary, .article-summary, .article');
-        
         articles.forEach(function(article) {
-            // Hapus dari dalam artikel
-            var toRemove = article.querySelectorAll('.affiliation, .doi, .pages, .airpubs-affiliations, .airpubs-doi, .airpubs-pages, .airpubs-stats-row, .airpubs-extra, .airpubs-doi-row, .abstract_views, .pdf_views, .views, .stat');
-            toRemove.forEach(function(el) {
-                if(el) el.remove();
+            if (article.getAttribute('data-airpubs')) return;
+            article.setAttribute('data-airpubs', '1');
+
+            var titleLink = article.querySelector('.title a') || article.querySelector('h3 a') || article.querySelector('h4 a');
+            if (!titleLink) return;
+
+            var articleUrl = titleLink.getAttribute('href');
+            var authorsDiv = article.querySelector('.meta .authors');
+            var pagesDiv = article.querySelector('.meta .pages');
+            var galleysList = article.querySelector('.galleys_links');
+
+            // HAPUS element authors (nama penulis) dari DOM
+            if (authorsDiv && authorsDiv.parentNode) {
+                authorsDiv.parentNode.removeChild(authorsDiv);
+            }
+
+            // Read data first
+            var pages = pagesDiv ? pagesDiv.textContent.trim() : '';
+            var galleys = [];
+            if (galleysList) {
+                var gLinks = galleysList.querySelectorAll('a');
+                for (var i = 0; i < gLinks.length; i++) {
+                    galleys.push({ label: gLinks[i].textContent.trim(), href: gLinks[i].getAttribute('href') });
+                }
+            }
+
+            // Remove originals
+            if (pagesDiv && pagesDiv.parentNode) pagesDiv.parentNode.removeChild(pagesDiv);
+            if (galleysList && galleysList.parentNode) galleysList.parentNode.removeChild(galleysList);
+
+            // Fetch article detail untuk mendapatkan stats (tanpa DOI)
+            fetch(articleUrl).then(function(res) {
+                return res.text();
+            }).then(function(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+
+                // Get article ID for stats API
+                var artIdMatch = articleUrl.match(/\/view\/(\d+)/);
+                var artId = artIdMatch ? artIdMatch[1] : '';
+                var journalPath = window.location.pathname.match(/\/index\.php\/([^\/]+)/);
+                var jPath = journalPath ? journalPath[1] : '';
+
+                // Fetch stats from API
+                var statsUrl = '/index.php/' + jPath + '/api/v1/stats/publications/' + artId;
+                fetch(statsUrl).then(function(sr) { return sr.json(); }).then(function(stats) {
+                    var abstractViews = stats.abstractViews || 0;
+                    var pdfViews = stats.pdfViews || stats.galleyViews || 0;
+                    buildBottom(article, galleys, pages, abstractViews, pdfViews);
+                }).catch(function() {
+                    buildBottom(article, galleys, pages, 0, 0);
+                });
+
+            }).catch(function() {
+                // Fetch failed - fallback tanpa data tambahan
+                buildBottom(article, galleys, pages, 0, 0);
             });
         });
+
+        // Article detail page - HAPUS penulis dan afiliasi dari halaman detail
+        var detailAuthors = document.querySelector('.obj_article_details .item.authors');
+        if (detailAuthors && !detailAuthors.getAttribute('data-airpubs')) {
+            detailAuthors.setAttribute('data-airpubs', '1');
+            // Hapus seluruh blok authors dari halaman detail
+            if (detailAuthors.parentNode) {
+                detailAuthors.parentNode.removeChild(detailAuthors);
+            }
+        }
+
+        // HAPUS DOI dari halaman detail artikel jika ada
+        var doiItem = document.querySelector('.obj_article_details .item.doi');
+        if (doiItem && doiItem.parentNode) {
+            doiItem.parentNode.removeChild(doiItem);
+        }
     }
 
-    // Observasi perubahan DOM untuk menangani konten yang dimuat secara dinamis
-    var observer = new MutationObserver(function() {
-        removeElements();
-        processArticles();
-    });
-
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-
-    // Jalankan segera
-    removeElements();
-    processArticles();
-
-    console.log('Script berjalan - afiliasi, abstract view, pdf view, doi, halaman telah dihapus');
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();
